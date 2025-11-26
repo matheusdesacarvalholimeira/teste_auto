@@ -1,0 +1,99 @@
+<!-- calculator.html -->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Calculadora Salário Líquido (Exemplo)</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    label, input, button { display:block; margin: 0.5rem 0; }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <h1>Calculadora de Salário Líquido (Exemplo)</h1>
+  <label for="salario">Salário Bruto (R$):</label>
+  <input id="salario" type="text" placeholder="Ex: 4500.00" />
+  <button id="calcular">Calcular</button>
+  <p id="err" class="error" style="display:none;">Insira um valor numérico válido</p>
+
+  <h2>Resultado</h2>
+  <div>
+    <p>INSS: <span id="inss">-</span></p>
+    <p>IRRF: <span id="irrf">-</span></p>
+    <p>Salário Líquido: <span id="liquido">-</span></p>
+  </div>
+
+<script>
+function parseNumber(v) {
+  if (!v) return null;
+  v = v.toString().replace(',', '.').trim();
+  if (v === '') return null;
+  var n = Number(v);
+  return isNaN(n) ? null : n;
+}
+
+// INSS brackets 2025 (progressivo)
+const inssBrackets = [
+  {min:0.00, max:1518.00, rate:0.075},
+  {min:1518.01, max:2793.88, rate:0.09},
+  {min:2793.89, max:4190.83, rate:0.12},
+  {min:4190.84, max:8157.41, rate:0.14}
+];
+
+// IRRF tabela (a partir de maio 2025) - [min, max, rate, ded]
+const irrfTable = [
+  {min:0.00, max:2428.80, rate:0.00, ded:0.00},
+  {min:2428.81, max:2826.65, rate:0.075, ded:182.16},
+  {min:2826.66, max:3751.05, rate:0.15, ded:394.16},
+  {min:3751.06, max:4664.68, rate:0.225, ded:675.49},
+  {min:4664.69, max:1e12, rate:0.275, ded:908.73}
+];
+
+function calcINSS(salario) {
+  let contrib = 0;
+  for (const b of inssBrackets) {
+    if (salario > b.min) {
+      const top = Math.min(salario, b.max);
+      const lower = (b.min === 0) ? 0 : b.min;
+      const taxable = Math.max(0, top - lower);
+      contrib += taxable * b.rate;
+    }
+  }
+  return Math.round(contrib*100)/100;
+}
+
+function calcIRRF(base) {
+  for (const t of irrfTable) {
+    if (base >= t.min && base <= t.max) {
+      if (t.rate === 0) return 0.00;
+      const val = base * t.rate - t.ded;
+      return Math.round(val*100)/100;
+    }
+  }
+  return 0.00;
+}
+
+document.getElementById('calcular').addEventListener('click', function(){
+  const raw = document.getElementById('salario').value;
+  const s = parseNumber(raw);
+  const err = document.getElementById('err');
+  if (s === null) {
+    err.style.display = 'block';
+    document.getElementById('inss').textContent = '-';
+    document.getElementById('irrf').textContent = '-';
+    document.getElementById('liquido').textContent = '-';
+    return;
+  }
+  err.style.display = 'none';
+  const inss = calcINSS(s);
+  const taxable = Math.round((s - inss)*100)/100;
+  const irrf = calcIRRF(taxable);
+  const liquido = Math.round((s - inss - irrf)*100)/100;
+  document.getElementById('inss').textContent = inss.toFixed(2);
+  document.getElementById('irrf').textContent = irrf.toFixed(2);
+  document.getElementById('liquido').textContent = liquido.toFixed(2);
+});
+</script>
+</body>
+</html>
